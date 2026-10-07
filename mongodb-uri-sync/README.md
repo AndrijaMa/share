@@ -5,7 +5,12 @@ Keeps an Openflow MongoDB connector pointed at the right MongoDB cluster. The sc
 (default `MongoDB Connection URI`).
 
 ```
-Snowflake table ──(PAT, SQL)──▶ mongodb_uri_to_openflow.py ──(PAT, NiFi REST)──▶ Openflow runtime / connector parameter
+Atlas DNS (SRV/TXT) ──▶ HOURLY_MONGODB_SYNC task (in Snowflake)
+                          1. LOAD_MONGODB_MEMBERS             → MONGODB_CLUSTER_NODES (new batch if members changed)
+                          2. UPDATE_MONGODB_ATLAS_NETWORK_RULE → MONGODB_ATLAS_RULE egress rule = current members
+                          3. BUILD_MONGODB_CONNECTION_STRING   → CONNECTION_STRING on latest batch
+
+MONGODB_CLUSTER_NODES ──(PAT, SQL)──▶ mongodb_uri_to_openflow.py ──(PAT, NiFi REST)──▶ connector parameter
 ```
 
 > Sample code provided as-is, without warranty or official Snowflake support. Review and test before production use.
@@ -19,27 +24,39 @@ Snowflake table ──(PAT, SQL)──▶ mongodb_uri_to_openflow.py ──(PAT,
 | `config.example.env` | All settings, copy to `.env` |
 | `sql/01_setup.sql` | Role, service user, table, grants, network policy |
 | `sql/02_create_pat.sql` | Creates / rotates the PAT |
+| `sql/03_mongodb_discovery.sql` | DNS resolver function, procedures `LOAD_MONGODB_MEMBERS`, `UPDATE_MONGODB_ATLAS_NETWORK_RULE`, `BUILD_MONGODB_CONNECTION_STRING`, network rules, EAI and task `HOURLY_MONGODB_SYNC` |
 
 ## Prerequisites
 
 - An Openflow deployment with a runtime that has the MongoDB connector added to its canvas.
 - Python 3.9+.
 - `ACCOUNTADMIN` (or equivalent) for the one-time setup.
-- The table `MONGODB_CLUSTER_NODES` is populated by your own process (a discovery job, ETL, or manual insert).
-  The script only reads it. The newest row by `RESOLVED_AT` that has a non-null `CONNECTION_STRING` wins.
+- A MongoDB Atlas cluster (its SRV host, e.g. `cluster0.abc123.mongodb.net`). The connector's credentials are
+  configured separately; the generated URI contains no username or password.
 
 ## Setup
 
 1. **Snowflake objects**: replace the placeholders in `sql/01_setup.sql` and run it.
 2. **PAT**: run `sql/02_create_pat.sql` and copy `token_secret`. Snowflake shows it only once.
-3. **Config**:
+3. **Discovery + hourly task**: replace the placeholders in `sql/03_mongodb_discovery.sql` and run it. It creates:
+   - `DNS_OVER_HTTPS_RULE` + `DNS_OVER_HTTPS_EAI` (egress to `dns.google:443`) and the Python table function
+     `RESOLVE_MONGODB_MEMBERS`, which reads the cluster's `_mongodb._tcp` SRV and TXT records.
+   - `MONGODB_ATLAS_RULE`: an egress rule for the member hosts. **Add it to the External Access Integration used
+     by your Openflow runtime**, so the connector can still reach the nodes when they change.
+   - The three procedures and the task `HOURLY_MONGODB_SYNC`, which runs them every 60 minutes.
+   The file ends with a manual first run, a check query, and `ALTER TASK ... RESUME`. Confirm that
+   `CONNECTION_STRING` is filled before you run the script below.
+
+   The newest batch (by `RESOLVED_AT`) is the current one. A new batch is written only when the set of
+   host:port members changes, so the table stays small.
+4. **Config**:
    ```bash
    cp config.example.env .env      # fill in values, put the PAT in SNOWFLAKE_PAT
    ```
    The values for `OPENFLOW_DEPLOYMENT` and `OPENFLOW_RUNTIME` are the `deployment` and `name` (or `display_name`)
    columns of `SHOW OPENFLOW RUNTIMES IN ACCOUNT`. `OPENFLOW_CONNECTOR` is the exact name of the connector's
    process group on the runtime canvas.
-4. **Install**:
+5. **Install**:
    ```bash
    python3 -m venv .venv && . .venv/bin/activate
    pip install -r requirements.txt
