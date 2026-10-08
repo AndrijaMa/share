@@ -1,4 +1,4 @@
-# OpenFlow Connector propertyrefresh via Github Actions setup Instructions
+# OpenFlow Connector property refresh via Github Actions 
 
 ## Prerequisites
 
