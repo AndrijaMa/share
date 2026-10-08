@@ -1,5 +1,6 @@
 /*
-    Create a fork of https://github.com/AndrijaMa/auto2
+    As a prereq you will need a github account
+	Create a fork of https://github.com/AndrijaMa/auto2
     Generate a PAT: permissions Read access to metadata,  Read and Write access to issues (Github Settings/Developer settings/Personal Access Token/Fine-grained tokens). Copy the pat value and use it in the github_pat variable below.
     Create paramaters and secrets in your repo:
     Security and quality/Secrets and variables:
