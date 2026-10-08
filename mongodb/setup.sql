@@ -27,7 +27,6 @@ SET github_pat   = 'github_pat';
 
 SET schema_fqn = $db || '.' || $schema;
 
-
 SET stmt = 'CREATE USER IF NOT EXISTS ' || $sync_user ||
            ' TYPE = SERVICE DEFAULT_ROLE = ' || $sync_role || ' DEFAULT_WAREHOUSE = ' || $warehouse ||
            ' COMMENT = ''mongodb-uri-sync service user''';
@@ -42,25 +41,17 @@ SET stmtx = 'ALTER USER IF EXISTS ' || $sync_user ||
             ' ROLE_RESTRICTION = ' || $runtime_role ||
             ' DAYS_TO_EXPIRY = 90 ' ||
             ' COMMENT = ''GitHub permission to talk to OpenFlow''';
-SELECT $stmtx;           
-EXECUTE IMMEDIATE $stmtx            
 
+EXECUTE IMMEDIATE $stmtx;           
 
 CREATE DATABASE IF NOT EXISTS IDENTIFIER($db);
 CREATE SCHEMA IF NOT EXISTS IDENTIFIER($schema_fqn);
 
 USE SCHEMA IDENTIFIER($schema_fqn);
 
-
-
 --Create a github PAT with read write Issues permissions
-CREATE SECRET GITHUBACTIONS
-    TYPE = GENERIC_STRING
-    SECRET_STRING = $github_pat;
-    
-CREATE SECRET MONGODB 
-    TYPE = GENERIC_STRING
-    SECRET_STRING = 'mongodb://';
+CREATE SECRET GITHUBACTIONS TYPE = GENERIC_STRING SECRET_STRING = $github_pat;
+CREATE SECRET MONGODB TYPE = GENERIC_STRING SECRET_STRING = 'mongodb://';
 
 GRANT READ ON SECRET MONGODB TO ROLE IDENTIFIER($runtime_role);
 GRANT USAGE ON SECRET MONGODB TO ROLE IDENTIFIER($runtime_role);
@@ -340,16 +331,8 @@ END;
 ';
 
 create or replace task HOURLY_MONGODB_SYNC
-	warehouse=MYWH
-	schedule='60 MINUTE'fREFRESH_MONGODB_CLUSTER
+	warehouse=$warehouse
+	schedule='60 MINUTE'
 	as BEGIN
     CALL REFRESH_MONGODB_CLUSTER('cluster0.iqm3dvu.mongodb.net');
 END;
-
-CALL REFRESH_MONGODB_CLUSTER('cluster0.iqm3dvu.mongodb.net');
-
-SELECT * FROM MONGODB_CLUSTER_NODES;
-TRUNCATE MONGODB_CLUSTER_NODES;
-
---Simulate change
-UPDATE MONGODB_CLUSTER_NODES SET HOST = 'cc-5e4dtv2-shard-00-01.iqm3dvu.mongodb.net' WHERE REPLICA_SET = 'cluster0.iqm3dvu.mongodb.net';
