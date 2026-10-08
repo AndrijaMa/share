@@ -175,9 +175,10 @@ In your Openflow runtime:
 ```text
 #{MONGODB}
 ```
-
 6. Apply the configuration.
-
+7. Go to the runtime where your MongoDB Connector is Right click on the MongoDB Processor group Select.
+8. Select Inheritance.
+9. Drag the Parameter contexts that you previously Enabled from the left to the right side and make sure that it is on the top.
 The MongoDB Connector will now use the `MONGODB` parameter value rather than having the connection URI configured directly in the connector.
 
 > **Note:** This manual configuration is only required once when setting up the runtime.
