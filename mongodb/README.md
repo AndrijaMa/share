@@ -1,6 +1,6 @@
 # OpenFlow Connector propertyrefresh via Github Actions setup Instructions
 
-Follow the steps below to configure and run **Auto2**.
+Follow the steps below to configure your environment.
 
 ## Prerequisites
 
