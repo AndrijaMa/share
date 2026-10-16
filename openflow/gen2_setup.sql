@@ -75,9 +75,7 @@ CREATE WAREHOUSE IF NOT EXISTS OPENFLOW_WH
 CREATE DATABASE IF NOT EXISTS OPENFLOW COMMENT = 'Openflow infrastructure database. [openflow]';
 CREATE SCHEMA   IF NOT EXISTS OPENFLOW.OPENFLOW COMMENT = 'Openflow infrastructure schema. [openflow]';
 
--- Destination database/schema for ingested data
-CREATE DATABASE IF NOT EXISTS OPENFLOW_DATA COMMENT = 'Openflow landing data. [openflow]';
-CREATE SCHEMA   IF NOT EXISTS OPENFLOW_DATA.RAW COMMENT = 'Openflow raw landing schema. [openflow]';
+
 
 -- -----------------------------------------------------------------------------
 -- 4. Openflow deployment (account-level object, no USE DATABASE needed)
@@ -98,14 +96,8 @@ SHOW OPENFLOW DEPLOYMENTS;
 -- -----------------------------------------------------------------------------
 CREATE EVENT TABLE IF NOT EXISTS OPENFLOW.OPENFLOW.EVENTS
   COMMENT = 'Openflow runtime logs and metrics. [openflow]';
+ALTER OPENFLOW DEPLOYMENT 73STRINGS  SET EVENT_TABLE = 'OPENFLOW.OPENFLOW.OPENFLOW_EVENTS';
 
--- Find the data plane integration that belongs to OPENFLOW_DEPLOYMENT and
--- point it at the event table (needs ACCOUNTADMIN or the integration owner).
-USE ROLE ACCOUNTADMIN;
-SHOW OPENFLOW DATA PLANE INTEGRATIONS;
--- DESCRIBE OPENFLOW DATA PLANE INTEGRATION <integration_name>;        -- <<< fill in
--- ALTER OPENFLOW DATA PLANE INTEGRATION <integration_name>
---   SET EVENT_TABLE = 'OPENFLOW.OPENFLOW.EVENTS';
 USE ROLE OPENFLOW_ADMIN;
 
 -- -----------------------------------------------------------------------------
@@ -124,10 +116,7 @@ GRANT USAGE ON DATABASE OPENFLOW                     TO ROLE OPENFLOW_RUNTIME_EX
 GRANT USAGE ON SCHEMA   OPENFLOW.OPENFLOW            TO ROLE OPENFLOW_RUNTIME_EXECUTE_AS_RL;
 GRANT USAGE ON DATABASE OPENFLOW_DATA                TO ROLE OPENFLOW_RUNTIME_EXECUTE_AS_RL;
 GRANT USAGE, CREATE TABLE, CREATE SCHEMA ON DATABASE OPENFLOW_DATA TO ROLE OPENFLOW_RUNTIME_EXECUTE_AS_RL;
-GRANT USAGE, CREATE TABLE, CREATE VIEW, CREATE DYNAMIC TABLE, CREATE STAGE, CREATE PIPE
-      ON SCHEMA OPENFLOW_DATA.RAW                    TO ROLE OPENFLOW_RUNTIME_EXECUTE_AS_RL;
-GRANT SELECT, INSERT, UPDATE, DELETE ON FUTURE TABLES IN SCHEMA OPENFLOW_DATA.RAW
-                                                     TO ROLE OPENFLOW_RUNTIME_EXECUTE_AS_RL;
+
 
 -- -----------------------------------------------------------------------------
 -- 7. Network egress (EAI) – lets the runtime reach external sources.
@@ -137,7 +126,7 @@ GRANT SELECT, INSERT, UPDATE, DELETE ON FUTURE TABLES IN SCHEMA OPENFLOW_DATA.RA
 CREATE NETWORK RULE IF NOT EXISTS OPENFLOW.OPENFLOW.OPENFLOW_RUNTIME_NETWORK_RULE
   MODE = EGRESS
   TYPE = HOST_PORT
-  VALUE_LIST = ('api.example.com:443', 'mydb.example.com:5432')   -- <<< CHANGE
+  VALUE_LIST = ('mydb.example.com:5432')   -- <<< CHANGE
   COMMENT = 'Egress for Openflow runtime OPENFLOW_RUNTIME. [openflow]';
 
 CREATE EXTERNAL ACCESS INTEGRATION IF NOT EXISTS OPENFLOW_RUNTIME_EAI
